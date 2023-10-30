@@ -288,7 +288,7 @@ namespace ViendStanceChangeSkill
 
         public static bool HasStanceChange(SkillLocator skillLocator)
         {
-            return skillLocator && skillLocator.special && (skillLocator.special.baseSkill == Content.EnterStanceChange);// || body.skillLocator.special.skillDef == Content.ExitStanceChange
+            return skillLocator && skillLocator.special && (skillLocator.special.baseSkill == Content.EnterStanceChange);
         }
     }
 }
