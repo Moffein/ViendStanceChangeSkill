@@ -1,0 +1,10 @@
+{
+	strings:
+	{
+		"VIENDJOKERMODE_ENTER_SKILL_NAME" : "【M?o?do C??uring?a』",
+		"VIENDJOKERMODE_ENTER_SKILL_DESCRIPTION" : "Torne-se <style=cIsVoid>Corrompido</style>... MAS <style=cIsHealth>reduza a armadura em 25</style> e <style=cIsHealth>reduza o dano das habilidades Corrompidas em 25%</style>. <style=cIsUtility>Desabilita a Corrupção passiva</style>.",
+		
+		"VIENDJOKERMODE_EXIT_SKILL_NAME" : "【M?o?do N??ormal』",
+		"VIENDJOKERMODE_EXIT_SKILL_DESCRIPTION" : "Sociedade.",
+	}
+}
