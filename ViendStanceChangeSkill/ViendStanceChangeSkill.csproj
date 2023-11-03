@@ -5,11 +5,22 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Remove="jokerviendbundle" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="jokerviendbundle" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Reference Include="0Harmony">
       <HintPath>libs\BepInEx\0Harmony.dll</HintPath>
     </Reference>
     <Reference Include="0Harmony20">
       <HintPath>libs\BepInEx\0Harmony20.dll</HintPath>
+    </Reference>
+    <Reference Include="AncientScepter">
+      <HintPath>libs\SoftDependencies\AncientScepter.dll</HintPath>
     </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>libs\Assembly-CSharp.dll</HintPath>

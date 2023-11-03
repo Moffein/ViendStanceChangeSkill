@@ -7,6 +7,7 @@ using RoR2.Skills;
 using RoR2.UI;
 using System;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
@@ -14,33 +15,50 @@ using ViendStanceChangeSkill.Modules;
 
 namespace ViendStanceChangeSkill
 {
+    [BepInDependency("com.DestroyedClone.AncientScepter", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("com.RiskyLives.RiskyMod", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("com.bepis.r2api")]
-    [BepInPlugin("com.Moffein.ViendStanceChangeSkill", "ViendStanceChangeSkill", "1.0.0")]
+    [BepInPlugin("com.Moffein.ViendStanceChangeSkill", "ViendStanceChangeSkill", "1.1.0")]
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.EveryoneNeedSameModVersion)]
     [R2API.Utils.R2APISubmoduleDependency(nameof(RecalculateStatsAPI))]
     public class ViendStanceChangeSkillPlugin : BaseUnityPlugin
     {
+        public static AssetBundle assetBundle;
         private static bool compatRiskyModLoaded = false;
+        private static bool compatScepterLoaded = false;
         public static float corruptDamageMult = 0.75f;
+        public static float corruptScepterDamageMult = 1f;
+        public static float corruptDamageTakenMult = 1.25f;
         public static PluginInfo pluginInfo;
+
+        private static BodyIndex viendBodyIndex = BodyIndex.None;
+        private static ItemIndex scepterIndex = ItemIndex.None;
 
         private void Awake()
         {
             pluginInfo = this.Info;
             compatRiskyModLoaded = BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("com.RiskyLives.RiskyMod");
+            compatScepterLoaded = BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("com.DestroyedClone.AncientScepter");
+
+            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ViendStanceChangeSkill.jokerviendbundle"))
+            {
+                assetBundle = AssetBundle.LoadFromStream(stream);
+            }
 
             //Config();
             Setup();
 
             Tokens.LoadLanguage();
             new Modules.Content().Initialize();
+
+            RoR2Application.onLoad += OnLoad;
         }
 
-        /*private void Config()
+        private void OnLoad()
         {
-
-        }*/
+            scepterIndex = ItemCatalog.FindItemIndex("ITEM_ANCIENT_SCEPTER");
+            viendBodyIndex = BodyCatalog.FindBodyIndex("VoidSurvivorBody");
+        }
 
         private void Setup()
         {
@@ -174,6 +192,45 @@ namespace ViendStanceChangeSkill
                 unlockableDef = null,
                 viewableNode = new ViewablesCatalog.Node(enterStanceChange.skillName, false, null)
             };
+
+            SkillDef enterStanceChangeScepter = ScriptableObject.CreateInstance<SkillDef>();
+            enterStanceChangeScepter.activationState = new SerializableEntityStateType(typeof(EntityStates.VoidSurvivor.JokerMode.EnterJokerMode));
+            enterStanceChangeScepter.activationStateMachineName = "Stance";
+            enterStanceChangeScepter.baseMaxStock = 1;
+            enterStanceChangeScepter.baseRechargeInterval = 6f;
+            enterStanceChangeScepter.beginSkillCooldownOnSkillEnd = true;
+            enterStanceChangeScepter.canceledFromSprinting = false;
+            enterStanceChangeScepter.cancelSprintingOnActivation = false;
+            enterStanceChangeScepter.forceSprintDuringState = false;
+            enterStanceChangeScepter.fullRestockOnAssign = true;
+            enterStanceChangeScepter.icon = assetBundle.LoadAsset<Sprite>("JOKERSCEPTER");
+            enterStanceChangeScepter.interruptPriority = InterruptPriority.Any;
+            enterStanceChangeScepter.isCombatSkill = false;
+            enterStanceChangeScepter.keywordTokens = new string[] { };
+            enterStanceChangeScepter.mustKeyPress = true;
+            enterStanceChangeScepter.rechargeStock = 1;
+            enterStanceChangeScepter.requiredStock = 1;
+            enterStanceChangeScepter.stockToConsume = 1;
+            enterStanceChangeScepter.resetCooldownTimerOnUse = false;
+            enterStanceChangeScepter.skillDescriptionToken = "VIENDJOKERMODE_ENTER_SKILL_SCEPTER_DESCRIPTION";
+            enterStanceChangeScepter.skillNameToken = "VIENDJOKERMODE_ENTER_SKILL_SCEPTER_NAME";
+            enterStanceChangeScepter.skillName = "ViendStanceChangeScepter";
+            (enterStanceChangeScepter as ScriptableObject).name = enterStanceChangeScepter.skillName;
+            Content.skillDefs.Add(enterStanceChangeScepter);
+            Content.EnterStanceChangeScepter = enterStanceChangeScepter;
+
+            RegisterScepterSkill();
+        }
+
+        private void RegisterScepterSkill()
+        {
+            if (compatScepterLoaded) RegisterScepterSkillInternal();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
+        private void RegisterScepterSkillInternal()
+        {
+            AncientScepter.AncientScepterItem.instance.RegisterScepterSkill(Content.EnterStanceChangeScepter, "VoidSurvivorBody", SkillSlot.Special, 1);
         }
 
         private void DisableCorruptMeter()
@@ -225,9 +282,21 @@ namespace ViendStanceChangeSkill
 
         private void CorruptStatMod()
         {
-            RecalculateStatsAPI.GetStatCoefficients += RecalculateStatsAPI_GetStatCoefficients;
+            if (!ViendStanceChangeSkillPlugin.RiskyModViendArmorStripEnabled()) RecalculateStatsAPI.GetStatCoefficients += RemoveCorruptArmor;
             On.EntityStates.VoidSurvivor.Weapon.FireCorruptHandBeam.OnEnter += FireCorruptHandBeam_OnEnter;
             On.EntityStates.VoidSurvivor.Weapon.FireCorruptDisks.FireProjectiles += FireCorruptDisks_FireProjectiles;
+            On.RoR2.HealthComponent.TakeDamage += HealthComponent_TakeDamage;
+        }
+
+        private void HealthComponent_TakeDamage(On.RoR2.HealthComponent.orig_TakeDamage orig, HealthComponent self, DamageInfo damageInfo)
+        {
+            if (self.body.bodyIndex == viendBodyIndex
+                && !damageInfo.damageType.HasFlag(DamageType.BypassArmor) && !damageInfo.damageType.HasFlag(DamageType.FallDamage) && !damageInfo.damageType.HasFlag(DamageType.OutOfBounds)
+                && self.body.HasBuff(DLC1Content.Buffs.VoidSurvivorCorruptMode) && HasStanceChange(self.body))
+            {
+                damageInfo.damage *= corruptDamageTakenMult;
+            }
+            orig(self, damageInfo);
         }
 
         private void FireCorruptDisks_FireProjectiles(On.EntityStates.VoidSurvivor.Weapon.FireCorruptDisks.orig_FireProjectiles orig, EntityStates.VoidSurvivor.Weapon.FireCorruptDisks self)
@@ -243,27 +312,32 @@ namespace ViendStanceChangeSkill
             self.damageStat = origDamage;
         }
 
-        private void FireCorruptDisks_OnEnter(On.EntityStates.VoidSurvivor.Weapon.FireCorruptDisks.orig_OnEnter orig, EntityStates.VoidSurvivor.Weapon.FireCorruptDisks self)
-        {
-            throw new NotImplementedException();
-        }
-
+        //Just check if player has scepter or not when applying damage penalty. Bad way to do this.
         private void FireCorruptHandBeam_OnEnter(On.EntityStates.VoidSurvivor.Weapon.FireCorruptHandBeam.orig_OnEnter orig, EntityStates.VoidSurvivor.Weapon.FireCorruptHandBeam self)
         {
             orig(self);
             if (HasStanceChange(self.skillLocator))
             {
-                self.damageStat *= ViendStanceChangeSkillPlugin.corruptDamageMult;
+                self.damageStat *= HasScepter(self.characterBody) ? corruptScepterDamageMult : corruptDamageMult;
             }
         }
 
-        private void RecalculateStatsAPI_GetStatCoefficients(CharacterBody sender, RecalculateStatsAPI.StatHookEventArgs args)
+        private void RemoveCorruptArmor(CharacterBody sender, RecalculateStatsAPI.StatHookEventArgs args)
         {
             if (sender.HasBuff(DLC1Content.Buffs.VoidSurvivorCorruptMode) && HasStanceChange(sender))
             {
-                if (ViendStanceChangeSkillPlugin.RiskyModViendArmorStripEnabled()) args.armorAdd -= 100f;
-                args.armorAdd -= 25f;
+                args.armorAdd -= 100f;
             }
+        }
+
+        public static bool HasScepter(CharacterBody body)
+        {
+            return body ? HasScepter(body.inventory) : false;
+        }
+
+        public static bool HasScepter(Inventory inventory)
+        {
+            return inventory ? inventory.GetItemCount(scepterIndex) > 0 : false;
         }
 
         public static bool RiskyModViendArmorStripEnabled()
