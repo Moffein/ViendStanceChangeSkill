@@ -304,7 +304,7 @@ namespace ViendStanceChangeSkill
             float origDamage = self.damageStat;
             if (HasStanceChange(self.skillLocator))
             {
-                self.damageStat *= ViendStanceChangeSkillPlugin.corruptDamageMult;
+                self.damageStat *= HasScepter(self.characterBody) ? corruptScepterDamageMult : corruptDamageMult;
             }
 
             orig(self);
