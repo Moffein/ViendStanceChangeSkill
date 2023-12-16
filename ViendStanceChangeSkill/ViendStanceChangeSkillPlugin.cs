@@ -18,7 +18,7 @@ namespace ViendStanceChangeSkill
     [BepInDependency("com.DestroyedClone.AncientScepter", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("com.RiskyLives.RiskyMod", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("com.bepis.r2api")]
-    [BepInPlugin("com.Moffein.ViendStanceChangeSkill", "ViendStanceChangeSkill", "1.1.0")]
+    [BepInPlugin("com.Moffein.ViendStanceChangeSkill", "ViendStanceChangeSkill", "1.1.1")]
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.EveryoneNeedSameModVersion)]
     [R2API.Utils.R2APISubmoduleDependency(nameof(RecalculateStatsAPI))]
     public class ViendStanceChangeSkillPlugin : BaseUnityPlugin
@@ -230,7 +230,7 @@ namespace ViendStanceChangeSkill
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
         private void RegisterScepterSkillInternal()
         {
-            AncientScepter.AncientScepterItem.instance.RegisterScepterSkill(Content.EnterStanceChangeScepter, "VoidSurvivorBody", SkillSlot.Special, 1);
+            AncientScepter.AncientScepterItem.instance.RegisterScepterSkill(Content.EnterStanceChangeScepter, "VoidSurvivorBody", Content.EnterStanceChange);
         }
 
         private void DisableCorruptMeter()
