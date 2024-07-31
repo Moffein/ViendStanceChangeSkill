@@ -18,7 +18,7 @@ namespace ViendStanceChangeSkill
     [BepInDependency("com.DestroyedClone.AncientScepter", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("com.RiskyLives.RiskyMod", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("com.bepis.r2api")]
-    [BepInPlugin("com.Moffein.ViendStanceChangeSkill", "ViendStanceChangeSkill", "1.1.1")]
+    [BepInPlugin("com.Moffein.ViendStanceChangeSkill", "ViendStanceChangeSkill", "1.2.0")]
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.EveryoneNeedSameModVersion)]
     [R2API.Utils.R2APISubmoduleDependency(nameof(RecalculateStatsAPI))]
     public class ViendStanceChangeSkillPlugin : BaseUnityPlugin
@@ -26,7 +26,7 @@ namespace ViendStanceChangeSkill
         public static AssetBundle assetBundle;
         private static bool compatRiskyModLoaded = false;
         private static bool compatScepterLoaded = false;
-        public static float corruptDamageMult = 0.75f;
+        public static float corruptDamagePenalty = 0.25f;
         public static float corruptScepterDamageMult = 1f;
         public static float corruptDamageTakenMult = 1.25f;
         public static PluginInfo pluginInfo;
@@ -282,9 +282,7 @@ namespace ViendStanceChangeSkill
 
         private void CorruptStatMod()
         {
-            if (!ViendStanceChangeSkillPlugin.RiskyModViendArmorStripEnabled()) RecalculateStatsAPI.GetStatCoefficients += RemoveCorruptArmor;
-            On.EntityStates.VoidSurvivor.Weapon.FireCorruptHandBeam.OnEnter += FireCorruptHandBeam_OnEnter;
-            On.EntityStates.VoidSurvivor.Weapon.FireCorruptDisks.FireProjectiles += FireCorruptDisks_FireProjectiles;
+            RecalculateStatsAPI.GetStatCoefficients += RecalculateStats;
             On.RoR2.HealthComponent.TakeDamage += HealthComponent_TakeDamage;
         }
 
@@ -299,34 +297,12 @@ namespace ViendStanceChangeSkill
             orig(self, damageInfo);
         }
 
-        private void FireCorruptDisks_FireProjectiles(On.EntityStates.VoidSurvivor.Weapon.FireCorruptDisks.orig_FireProjectiles orig, EntityStates.VoidSurvivor.Weapon.FireCorruptDisks self)
-        {
-            float origDamage = self.damageStat;
-            if (HasStanceChange(self.skillLocator))
-            {
-                self.damageStat *= HasScepter(self.characterBody) ? corruptScepterDamageMult : corruptDamageMult;
-            }
-
-            orig(self);
-
-            self.damageStat = origDamage;
-        }
-
-        //Just check if player has scepter or not when applying damage penalty. Bad way to do this.
-        private void FireCorruptHandBeam_OnEnter(On.EntityStates.VoidSurvivor.Weapon.FireCorruptHandBeam.orig_OnEnter orig, EntityStates.VoidSurvivor.Weapon.FireCorruptHandBeam self)
-        {
-            orig(self);
-            if (HasStanceChange(self.skillLocator))
-            {
-                self.damageStat *= HasScepter(self.characterBody) ? corruptScepterDamageMult : corruptDamageMult;
-            }
-        }
-
-        private void RemoveCorruptArmor(CharacterBody sender, RecalculateStatsAPI.StatHookEventArgs args)
+        private void RecalculateStats(CharacterBody sender, RecalculateStatsAPI.StatHookEventArgs args)
         {
             if (sender.HasBuff(DLC1Content.Buffs.VoidSurvivorCorruptMode) && HasStanceChange(sender))
             {
-                args.armorAdd -= 100f;
+                if (!ViendStanceChangeSkillPlugin.RiskyModViendArmorStripEnabled())  args.armorAdd -= 100f;
+                if (!HasScepter(sender)) args.damageMultAdd -= corruptDamagePenalty;
             }
         }
 
@@ -352,7 +328,7 @@ namespace ViendStanceChangeSkill
         [MethodImpl(MethodImplOptions.NoInlining | MethodImplOptions.NoOptimization)]
         private static bool RiskyModViendArmorStripEnabledInternal()
         {
-            return RiskyMod.Survivors.DLC1.VoidFiend.VoidFiendCore.removeCorruptArmor;
+            return RiskyMod.Survivors.SurvivorsCore.enabled && RiskyMod.Survivors.DLC1.VoidFiend.VoidFiendCore.enabled && RiskyMod.Survivors.DLC1.VoidFiend.VoidFiendCore.removeCorruptArmor;
         }
 
         public static bool HasStanceChange(CharacterBody body)
