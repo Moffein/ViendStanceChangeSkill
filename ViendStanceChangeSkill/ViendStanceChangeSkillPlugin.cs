@@ -17,10 +17,11 @@ namespace ViendStanceChangeSkill
 {
     [BepInDependency("com.DestroyedClone.AncientScepter", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency("com.RiskyLives.RiskyMod", BepInDependency.DependencyFlags.SoftDependency)]
-    [BepInDependency("com.bepis.r2api")]
-    [BepInPlugin("com.Moffein.ViendStanceChangeSkill", "ViendStanceChangeSkill", "1.2.0")]
+    [BepInDependency(R2API.R2API.PluginGUID)]
+    [BepInDependency(R2API.ContentManagement.R2APIContentManager.PluginGUID)]
+    [BepInDependency(R2API.RecalculateStatsAPI.PluginGUID)]
+    [BepInPlugin("com.Moffein.ViendStanceChangeSkill", "ViendStanceChangeSkill", "1.2.1")]
     [NetworkCompatibility(CompatibilityLevel.EveryoneMustHaveMod, VersionStrictness.EveryoneNeedSameModVersion)]
-    [R2API.Utils.R2APISubmoduleDependency(nameof(RecalculateStatsAPI))]
     public class ViendStanceChangeSkillPlugin : BaseUnityPlugin
     {
         public static AssetBundle assetBundle;
@@ -289,7 +290,7 @@ namespace ViendStanceChangeSkill
         private void HealthComponent_TakeDamage(On.RoR2.HealthComponent.orig_TakeDamage orig, HealthComponent self, DamageInfo damageInfo)
         {
             if (self.body.bodyIndex == viendBodyIndex
-                && !damageInfo.damageType.HasFlag(DamageType.BypassArmor) && !damageInfo.damageType.HasFlag(DamageType.FallDamage) && !damageInfo.damageType.HasFlag(DamageType.OutOfBounds)
+                && ((damageInfo.damageType & DamageType.BypassArmor) == 0) && ((damageInfo.damageType & DamageType.FallDamage) == 0) && ((damageInfo.damageType & DamageType.OutOfBounds) == 0)
                 && self.body.HasBuff(DLC1Content.Buffs.VoidSurvivorCorruptMode) && HasStanceChange(self.body))
             {
                 damageInfo.damage *= corruptDamageTakenMult;
